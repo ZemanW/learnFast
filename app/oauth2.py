@@ -5,24 +5,25 @@ from fastapi import Depends, status, HTTPException
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
 from .database import get_db
+from .config import settings
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
-SECERET_KEY = "jwtseceret"
-ALGORITHM = "HS256"
-ACESS_TOKEN_EXPIRE_MINUTES = 30
+SECRET_KEY = f"{settings.secret_key}"
+ALGORITHM = f"{settings.algorithm}"
+ACCESS_TOKEN_EXPIRE_MINUTES = settings.access_token_expire_minutes
 
 
 def create_access_token(data: dict):
     to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(minutes=ACESS_TOKEN_EXPIRE_MINUTES)
+    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECERET_KEY, algorithm=ALGORITHM)
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
 
 def verify_access_token(token: str, credentials_excpetion):
     try:
-        payload = jwt.decode(token, SECERET_KEY, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         id: str = payload.get("user_id")  # type:ignore
         if id is None:
             raise credentials_excpetion
@@ -41,6 +42,6 @@ def get_current_user(
         headers={"WWW-Authenticate": "Bearer"},
     )
     token = verify_access_token(token, credentials_excpetion)
-    user = db.query(models.user).filter(models.User.id == token.id).first()
+    user = db.query(models.User).filter(models.User.id == token.id).first()
 
     return user
